@@ -15,7 +15,7 @@
 # Base Robot Construction Kit
 # https://github.com/rock-core/rock-package_set
 
-require File.join(__dir__, 'autobuild/python')
+require File.join(__dir__, 'autoproj/python')
 require File.join(__dir__, 'autobuild/python_setuptools')
 require File.join(__dir__, 'autobuild/dsl')
 

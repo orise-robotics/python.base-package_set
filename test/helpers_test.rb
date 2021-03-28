@@ -15,6 +15,8 @@ module Helpers
     end
 end
 
-class Minitest::Test
+module Minitest
+    class Test
     include Helpers
+    end
 end

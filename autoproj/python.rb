@@ -39,27 +39,27 @@ module PythonBase
     # Get the python version for a given python executable
     # @return [String] The python version as <major>.<minor>
     def self.get_python_version(python_bin)
-        if !File.exist?(python_bin)
+        unless File.exist?(python_bin)
             raise ArgumentError, "PythonBase.get_python_version executable "\
                         "'#{python_bin}' does not exist"
         end
 
         cmd = "#{python_bin} -c \"import sys;"\
             "version=sys.version_info[:3]; "\
-            "print('{0}.{1}'.format(*version))\"".strip()
+            "print('{0}.{1}'.format(*version))\"".strip
 
         msg, status = Open3.capture2e(cmd)
         if status.success?
-            python_version = msg.strip()
-            return python_version
+            msg.strip
+
         else
-            raise RuntimeError, "PythonBase.get_python_version identification"\
+            raise "PythonBase.get_python_version identification"\
                 " of python version for '#{python_bin}' failed: #{msg}"
         end
     end
 
     def self.get_pip_version(pip_bin)
-        if !File.exist?(pip_bin)
+        unless File.exist?(pip_bin)
             raise ArgumentError, "PythonBase.get_pip_version executable "\
                         "'#{pip_bin}' does not exist"
         end
@@ -68,20 +68,20 @@ module PythonBase
 
         msg, status = Open3.capture2e(cmd)
         if status.success?
-            pip_version = msg.split(" ")[1]
-            return pip_version
+            msg.split(" ")[1]
+
         else
-            raise RuntimeError, "PythonBase.get_pip_version identification"\
+            raise "PythonBase.get_pip_version identification"\
                 " of pip version for '#{pip_bin}' failed: #{msg}"
         end
     end
 
     def self.validate_version(version, version_constraint)
         if !version_constraint
-            return true
+            true
         else
             dependency = Gem::Dependency.new("python", version_constraint)
-            return dependency.match?("python", version)
+            dependency.match?("python", version)
         end
     end
 
@@ -89,33 +89,31 @@ module PythonBase
     # a given version constraint
     # @param [String] python_bin the python executable
     # @param [String] version_constraint version constraint, e.g., <3.8, >= 3.7, 3.6
-    # @return [String,Bool] Version and validation result, i.e., True if binary fulfills the version constraint, false
-    #   otherwise
+    # @return [String,Bool] Version and validation result,
+    #    i.e., True if binary fulfills the version constraint, false otherwise
     def self.validate_python_version(python_bin, version_constraint)
         version = get_python_version(python_bin)
-        return [version, validate_version(version, version_constraint)]
+        [version, validate_version(version, version_constraint)]
     end
 
     # Find python given a version constraint
     # @return [String,String] path to python executable and python version
     def self.find_python(ws: Autoproj.workspace,
-                         version: ws.config.get('python_version',nil))
+                         version: ws.config.get('python_version', nil))
         finders = [
-            lambda { Autobuild.programs['python'] },
-            lambda { `which python3`.strip() },
-            lambda { `which python`.strip() }
+            -> { Autobuild.programs['python'] },
+            -> { `which python3`.strip },
+            -> { `which python`.strip }
         ]
 
         finders.each do |finder|
             python_bin = finder.call
             if python_bin && !python_bin.empty?
                 python_version, valid = validate_python_version(python_bin, version)
-                if valid
-                    return python_bin, python_version
-                end
+                return python_bin, python_version if valid
             end
         end
-        raise RuntimeError, "PythonBase.find_python_bin: failed to find python" \
+        raise "PythonBase.find_python_bin: failed to find python" \
             " for version '#{version}'"
     end
 
@@ -134,21 +132,21 @@ module PythonBase
 
         # If a version constraint is given, ensure fulfillment
         if validate_version(config_version, version)
-            return config_bin, config_version
+            [config_bin, config_version]
         else
-            raise RuntimeError, "python_executable in autoproj config with version '#{config_version}'"\
+            raise "python_executable in autoproj config with version '#{config_version}'"\
                 " does not match version constraints '#{version}'"
         end
     end
 
-    def self.custom_resolve_python(ws: Autoproj.workspace,
+    def self.custom_resolve_python(ws: Autoproj.workspace, # rubocop:disable Lint/UnusedMethodArgument
                                    bin: nil,
                                    version: nil)
         version, valid = validate_python_version(bin, version)
         if valid
-            return [bin, version]
+            [bin, version]
         else
-            raise RuntimeError, "PythonBase.resolve_python: requested python"\
+            raise "PythonBase.resolve_python: requested python"\
                 "executable '#{bin}' does not satisfy version"\
                 "constraints '#{version}'"
         end
@@ -158,30 +156,28 @@ module PythonBase
                                  version: nil)
         version_constraint = version
         resolvers = [
-            lambda { get_python_from_config(ws: ws, version: version_constraint) },
-            lambda { find_python(ws: ws, version: version_constraint) }
+            -> { get_python_from_config(ws: ws, version: version_constraint) },
+            -> { find_python(ws: ws, version: version_constraint) }
         ]
 
         bin = nil
         resolvers.each do |resolver|
-            begin
                 bin, version = resolver.call
-                if bin && File.exists?(bin) && version
+                if bin && File.exist?(bin) && version
                     Autoproj.debug "PythonBase.resolve_python: found python '#{bin}'"\
                         " version '#{version}'"
                     break
                 end
-            rescue RuntimeError => e
+        rescue RuntimeError => e
                 Autoproj.debug "PythonBase.resolve_python: resolver failed: #{e}"
-            end
         end
 
-        if !bin
+        unless bin
             msg = "PythonBase.resolve_python: failed to find a python executable"
             if version_constraint
                 msg += " satisfying version constraint '#{version_constraint}'"
             end
-            raise RuntimeError, msg
+            raise msg
         end
         [bin, version]
     end
@@ -196,24 +192,22 @@ module PythonBase
     def self.resolve_python(ws: Autoproj.workspace,
                             bin: nil,
                             version: nil)
-        version_constraint = version
         # Custom selection of python version
         if bin
-            return custom_resolve_python(ws: ws, bin: bin, version: version)
+            custom_resolve_python(ws: ws, bin: bin, version: version)
         else
-            return auto_resolve_python(ws: ws, version: version)
-        end
-    end
-    def self.remove_python_shims(root_dir)
-        shim_path = File.join(root_dir, "install","bin","python")
-        if File.exists?(shim_path)
-            FileUtils.rm shim_path
+            auto_resolve_python(ws: ws, version: version)
         end
     end
 
+    def self.remove_python_shims(root_dir)
+        shim_path = File.join(root_dir, "install", "bin", "python")
+        FileUtils.rm shim_path if File.exist?(shim_path)
+    end
+
     def self.rewrite_python_shims(python_executable, root_dir)
-        shim_path = File.join(root_dir, "install","bin")
-        if !File.exist?(shim_path)
+        shim_path = File.join(root_dir, "install", "bin")
+        unless File.exist?(shim_path)
             FileUtils.mkdir_p shim_path
             Autoproj.warn "PythonBase.rewrite_python_shims: creating "\
                 "#{shim_path} - "\
@@ -225,13 +219,13 @@ module PythonBase
             io.puts "#! /bin/sh"
             io.puts "exec #{python_executable} \"$@\""
         end
-        FileUtils.chmod 0755, python_path
+        FileUtils.chmod 0o755, python_path
         python_path
     end
 
     def self.rewrite_pip_shims(python_executable, root_dir)
-        shim_path = File.join(root_dir, "install","bin")
-        if !File.exist?(shim_path)
+        shim_path = File.join(root_dir, "install", "bin")
+        unless File.exist?(shim_path)
             FileUtils.mkdir_p shim_path
             Autoproj.warn "PythonBase.rewrite_pip_shims: creating "\
                 "#{shim_path} - "\
@@ -242,7 +236,7 @@ module PythonBase
             io.puts "#! /bin/sh"
             io.puts "exec #{python_executable} -m pip \"$@\""
         end
-        FileUtils.chmod 0755, pip_path
+        FileUtils.chmod 0o755, pip_path
         pip_path
     end
 
@@ -282,11 +276,11 @@ module PythonBase
                              ws: Autoproj.workspace,
                              bin: nil,
                              version: nil)
-        return unless ws.config.get('USE_PYTHON',nil)
+        return unless ws.config.get('USE_PYTHON', nil)
 
         bin, version = resolve_python(ws: ws, bin: bin, version: version)
         path = File.join(pkg.prefix, "lib",
-                             "python#{version}","site-packages")
+                         "python#{version}", "site-packages")
         pkg.env_add_path 'PYTHONPATH', path
 
         [bin, version, path]
@@ -294,18 +288,18 @@ module PythonBase
 
     def self.setup_python_configuration_options(ws: Autoproj.workspace)
         ws.config.declare 'USE_PYTHON', 'boolean',
-            default: 'no',
-            doc: [ "Do you want to activate python?" ]
+                          default: 'no',
+                          doc: ["Do you want to activate python?"]
 
         if ws.config.get("USE_PYTHON")
-            if !ws.config.has_value_for?('python_executable')
+            unless ws.config.has_value_for?('python_executable')
                 remove_python_shims(ws.root_dir)
-                python_bin,_ = auto_resolve_python(ws: ws)
+                python_bin, = auto_resolve_python(ws: ws)
             end
 
             ws.config.declare 'python_executable', 'string',
-                default: "#{python_bin}",
-                doc: [ "Select the path to the python executable" ]
+                              default: python_bin.to_s,
+                              doc: ["Select the path to the python executable"]
 
             activate_python(ws: ws)
         else

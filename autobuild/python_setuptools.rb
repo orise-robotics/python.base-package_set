@@ -43,6 +43,7 @@ module Autobuild
       def update_srcdir
           @importdir ||= @srcdir
           return if File.exist?(File.join(srcdir, 'package.xml'))
+
           usual_manifestdir = File.join(srcdir, name, 'package.xml')
 
           if File.exist?(usual_manifestdir)
@@ -64,6 +65,7 @@ module Autobuild
       def import(options)
           @mutex.synchronize do
               return if updated? || failed?
+
               result = super(**options)
               update_srcdir
               result
