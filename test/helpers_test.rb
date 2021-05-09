@@ -1,4 +1,4 @@
-# As it is Robot Construction Kit
+# Copyright Base Robot Construction Kit
 # https://github.com/rock-core/rock-package_set
 
 require 'autoproj'
