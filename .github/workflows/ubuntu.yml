@@ -1,0 +1,43 @@
+name: Unit Tests
+
+on: [pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+
+    strategy:
+      matrix:
+        ruby-version: ["2.7", "2.6", "2.5"]
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Ruby ${{ matrix.ruby-version }}
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: ${{ matrix.ruby-version }}
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: gem install flexmock minitest autoproj autobuild rubocop
+    - name: Run tests
+      run: rake test
+  lint:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v2
+    - name: Set up Ruby 2.7
+      uses: ruby/setup-ruby@v1
+      with:
+        ruby-version: 2.7
+    - uses: actions/setup-python@v2
+      with:
+        python-version: '3.x'
+    - name: Install dependencies
+      run: gem install flexmock minitest autoproj autobuild rubocop rubocop-rock
+    - name: Get rubocop configuration
+      run: sudo apt install wget && wget https://raw.githubusercontent.com/rock-core/autobuild/69fb8cacc09bd88bfcd1b49d8015c928c5bab24a/.rubocop.yml
+    - name: Run tests
+      run: rake test
